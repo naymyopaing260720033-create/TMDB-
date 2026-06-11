@@ -2,6 +2,7 @@ from flask import Flask, request
 import telebot
 import requests
 import os
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, LinkPreviewOptions
 
 # API Keys များကို Vercel Environment Variables ကနေ ဆွဲယူမည်
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -50,18 +51,42 @@ def search_movie(message):
                 trailer_link = f"https://www.youtube.com/watch?v={video.get('key')}"
                 break
         
-        # ၃။ Message ပြင်ဆင်ခြင်း
+        # ၃။ Message စာသား ပြင်ဆင်ခြင်း
         reply_message = f"🎬 *{title}* ({year})\n⭐️ Rating: {rating}/10\n\n📝 *Summary:*\n{overview}\n\n"
+        
+        # Inline Keyboard ခလုတ်ဆောက်ခြင်း
+        markup = InlineKeyboardMarkup()
+        
         if trailer_link:
-            reply_message += f"📺 [Watch Trailer on YouTube]({trailer_link})"
+            reply_message += f"📺 *Official Trailer:* {trailer_link}"
+            # စာသားအောက်မှာ နှိပ်လို့ရမယ့် ခလုတ်လှလှလေး ထည့်ပေးခြင်း
+            markup.add(InlineKeyboardButton(text="📺 Watch Trailer", url=trailer_link))
         else:
             reply_message += "📺 *Trailer:* Not available."
 
+        # Telegram In-app Video Player ပွင့်စေရန် Setting သတ်မှတ်ခြင်း
+        preview_options = LinkPreviewOptions(is_disabled=False, prefer_large_media=True)
+
+        # ၄။ User ထံ ပုံနှင့်စာ တွဲပို့ခြင်း
         if poster_path:
             poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}"
-            bot.send_photo(message.chat.id, poster_url, caption=reply_message, parse_mode='Markdown')
+            # ပုံနဲ့တွဲပို့ရင် Caption အောက်မှာ ခလုတ်ပေါ်လာပါမယ်
+            bot.send_photo(
+                message.chat.id, 
+                poster_url, 
+                caption=reply_message, 
+                parse_mode='Markdown', 
+                reply_markup=markup
+            )
         else:
-            bot.send_message(message.chat.id, reply_message, parse_mode='Markdown')
+            # ပုံမရှိရင် စာချည်းပဲပို့ပြီး YouTube Player ပေါ်အောင်လုပ်ပါမယ်
+            bot.send_message(
+                message.chat.id, 
+                reply_message, 
+                parse_mode='Markdown', 
+                reply_markup=markup,
+                link_preview_options=preview_options
+            )
             
     except Exception as e:
         print(e)
@@ -81,4 +106,4 @@ def webhook():
 @app.route('/', methods=['GET'])
 def index():
     return "Bot is running...", 200
-      
+    
